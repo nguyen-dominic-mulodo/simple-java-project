@@ -1,0 +1,40 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      java: openjdk11
+      python: 3.7 
+      
+    commands:
+      # Install dependencies needed for running tests
+    
+
+      # Upgrade AWS CLI to the latest version
+      - pip3 install --upgrade awscli
+      
+      - apt install -y mongodb
+      
+  pre_build:
+    commands:
+      # Discover and run unit tests in the 'tests' directory
+      # - npm test
+      - apt-get install checkstyle
+
+  post_build:
+    commands:
+      # Remove existing node_modules to clear dev dependencies
+      - rm -r node_modules
+
+      # Install runtime dependencies
+      - npm install --production
+
+      - eslint -c .eslintrc.json -f checkstyle src/**.js -o src/checkstyle-result.xml || exit 0
+      - xml-js src/checkstyle-result.xml --spaces 4 --out src/checkstyle-result.json
+      - mongoimport --host codechecker-shard-0/codechecker-shard-00-00-v6w0w.mongodb.net:27017,codechecker-shard-00-01-v6w0w.mongodb.net:27017,codechecker-shard-00-02-v6w0w.mongodb.net:27017 --ssl --username user01 --password qNGAi33fWXZPNT6u --authenticationDatabase admin --db codechecker --collection eslint --type json --file src/checkstyle-result.json
+  
+artifacts:
+  type: zip
+  files:
+    - src/checkstyle-result.json
+    - src/checkstyle-result.xml
